@@ -1,0 +1,50 @@
+name: Android build
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v4
+
+      # Unpack MobileCode.zip if the code was committed as an archive
+      - name: Unpack MobileCode archive
+        run: |
+          if [ -f "MobileCode.zip" ]; then
+            echo "Found MobileCode.zip, extracting..."
+            unzip -q MobileCode.zip
+            if [ -d "MobileCode" ]; then
+              cp -r MobileCode/* .
+              cp -r MobileCode/.* . 2>/dev/null || true
+              rm -rf MobileCode
+            fi
+          fi
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      # AGP 8.5.x needs Gradle 8.7 or newer
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.7"
+
+      - name: Build debug APK
+        run: gradle assembleDebug --stacktrace
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: MobileCode-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          
